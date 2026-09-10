@@ -1,0 +1,6 @@
+{
+  "name": "Таблица символизма Славянского Таро",
+  "description": "Интерактивная таблица символизма Старших арканов Таро в славянской мифологии с интеграцией Google Таблиц на основе книги «Загадочное Таро Уэйта»",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
