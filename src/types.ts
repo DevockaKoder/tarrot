@@ -32,6 +32,7 @@ export interface TarotCard {
   philosophy: string;
   slavicMythologicalContext: string;
   symbolsExplanation: SymbolDetail[];
+  isModified?: boolean;
 }
 
 export type FilterLessonType = 'all' | 'earth' | 'spiritual';

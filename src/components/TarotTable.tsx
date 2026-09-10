@@ -1,13 +1,14 @@
 import React from 'react';
-import { Eye, ExternalLink, Sparkles, Shield, Compass, CircleDot } from 'lucide-react';
+import { Eye, Edit3, Compass } from 'lucide-react';
 import { TarotCard } from '../types';
 
 interface TarotTableProps {
   cards: TarotCard[];
   onSelectCard: (card: TarotCard) => void;
+  onEditCard?: (card: TarotCard) => void;
 }
 
-export const TarotTable: React.FC<TarotTableProps> = ({ cards, onSelectCard }) => {
+export const TarotTable: React.FC<TarotTableProps> = ({ cards, onSelectCard, onEditCard }) => {
   if (cards.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center">
@@ -81,8 +82,8 @@ export const TarotTable: React.FC<TarotTableProps> = ({ cards, onSelectCard }) =
             <th scope="col" className="px-3 py-3.5 min-w-[170px]">
               Практика по книге
             </th>
-            <th scope="col" className="py-3.5 pl-2 pr-4 sm:pr-6 text-center w-20">
-              Инфо
+            <th scope="col" className="py-3.5 pl-2 pr-4 sm:pr-6 text-center w-24">
+              Действия
             </th>
           </tr>
         </thead>
@@ -111,6 +112,9 @@ export const TarotTable: React.FC<TarotTableProps> = ({ cards, onSelectCard }) =
                     >
                       {isEarth ? 'Земной' : 'Духов.'}
                     </span>
+                    {card.isModified && (
+                      <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-400" title="Карта отредактирована пользователем" />
+                    )}
                   </div>
                 </td>
 
@@ -205,18 +209,34 @@ export const TarotTable: React.FC<TarotTableProps> = ({ cards, onSelectCard }) =
                   </div>
                 </td>
 
-                {/* Action button */}
+                {/* Action buttons */}
                 <td className="py-3.5 pl-2 pr-4 sm:pr-6 text-center">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectCard(card);
-                    }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-slate-300 transition hover:bg-amber-900/40 hover:text-amber-200 border border-slate-700/60"
-                    title="Смотреть подробности аркана"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectCard(card);
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800 text-slate-300 transition hover:bg-amber-900/40 hover:text-amber-200 border border-slate-700/60"
+                      title="Подробный просмотр"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onEditCard) {
+                          onEditCard(card);
+                        } else {
+                          onSelectCard(card);
+                        }
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800 text-amber-400 transition hover:bg-amber-900/50 hover:text-amber-200 border border-slate-700/60"
+                      title="Редактировать данные карты"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             );

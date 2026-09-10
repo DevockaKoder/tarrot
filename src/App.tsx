@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TAROT_CARDS } from './data/tarotCards';
 import { TarotCard, FilterLessonType, FilterAtomicType, FilterRealm } from './types';
 import { Header } from './components/Header';
@@ -8,9 +8,27 @@ import { CardDetailModal } from './components/CardDetailModal';
 import { GoogleSheetsExportModal } from './components/GoogleSheetsExportModal';
 import { BookContextModal } from './components/BookContextModal';
 import { generateCsv, generateMarkdown } from './services/googleSheetsService';
-import { Sparkles, Compass, Shield, HeartHandshake, Eye, BookOpen, FileSpreadsheet } from 'lucide-react';
+import { Sparkles, RotateCcw, Check, Edit3, Info } from 'lucide-react';
+
+const STORAGE_KEY = 'slavic_tarot_cards_custom_v1';
 
 export default function App() {
+  // Load persisted cards or fallback to TAROT_CARDS
+  const [cards, setCards] = useState<TarotCard[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === TAROT_CARDS.length) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load cards from storage', e);
+    }
+    return TAROT_CARDS;
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLesson, setSelectedLesson] = useState<FilterLessonType>('all');
   const [selectedAtomic, setSelectedAtomic] = useState<FilterAtomicType>('all');
@@ -21,9 +39,52 @@ export default function App() {
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [copiedMd, setCopiedMd] = useState(false);
 
+  // Save to localStorage whenever cards change
+  const saveCardsToStorage = (updatedCards: TarotCard[]) => {
+    setCards(updatedCards);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCards));
+    } catch (e) {
+      console.error('Failed to persist cards', e);
+    }
+  };
+
+  // Card update handler
+  const handleSaveCard = (updatedCard: TarotCard) => {
+    const updatedCards = cards.map((c) => (c.id === updatedCard.id ? updatedCard : c));
+    saveCardsToStorage(updatedCards);
+    setSelectedCard(updatedCard);
+  };
+
+  // Reset single card to original book dataset
+  const handleResetCard = (cardId: number) => {
+    const original = TAROT_CARDS.find((c) => c.id === cardId);
+    if (!original) return;
+    const updatedCards = cards.map((c) => (c.id === cardId ? { ...original, isModified: false } : c));
+    saveCardsToStorage(updatedCards);
+    setSelectedCard({ ...original, isModified: false });
+  };
+
+  // Reset all cards to original book dataset
+  const handleResetAllCards = () => {
+    if (window.confirm('Сбросить все отредактированные карты к исходному канону книги?')) {
+      saveCardsToStorage(TAROT_CARDS);
+      localStorage.removeItem(STORAGE_KEY);
+      if (selectedCard) {
+        const orig = TAROT_CARDS.find((c) => c.id === selectedCard.id);
+        if (orig) setSelectedCard(orig);
+      }
+    }
+  };
+
+  // Count modified cards
+  const modifiedCount = useMemo(() => {
+    return cards.filter((c) => c.isModified).length;
+  }, [cards]);
+
   // Filtered Cards
   const filteredCards = useMemo(() => {
-    return TAROT_CARDS.filter((card) => {
+    return cards.filter((card) => {
       // Search query
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
@@ -66,7 +127,7 @@ export default function App() {
 
       return true;
     });
-  }, [searchQuery, selectedLesson, selectedAtomic, selectedRealm]);
+  }, [cards, searchQuery, selectedLesson, selectedAtomic, selectedRealm]);
 
   const handleResetFilters = () => {
     setSearchQuery('');
@@ -79,14 +140,14 @@ export default function App() {
   const handlePrevCard = () => {
     if (!selectedCard) return;
     const prevId = (selectedCard.id - 1 + 22) % 22;
-    const prev = TAROT_CARDS.find((c) => c.id === prevId);
+    const prev = cards.find((c) => c.id === prevId);
     if (prev) setSelectedCard(prev);
   };
 
   const handleNextCard = () => {
     if (!selectedCard) return;
     const nextId = (selectedCard.id + 1) % 22;
-    const next = TAROT_CARDS.find((c) => c.id === nextId);
+    const next = cards.find((c) => c.id === nextId);
     if (next) setSelectedCard(next);
   };
 
@@ -120,8 +181,8 @@ export default function App() {
         copiedMd={copiedMd}
       />
 
-      {/* Hero / Concept Banner */}
-      <div className="border-b border-slate-800/80 bg-gradient-to-r from-amber-950/20 via-slate-900/60 to-slate-900/40 px-4 py-4 sm:px-6 lg:px-8">
+      {/* Concept & Stat Banner */}
+      <div className="border-b border-slate-800/80 bg-gradient-to-r from-amber-950/20 via-slate-900/60 to-slate-900/40 px-4 py-3 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-4 text-xs">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-slate-300">
             <div className="flex items-center gap-1.5 font-medium">
@@ -151,10 +212,32 @@ export default function App() {
           </div>
 
           <div className="text-slate-400 text-[11px] flex items-center gap-2">
-            <span className="hidden sm:inline">Нажмите на строку карты для подробного мифологического и метафизического анализа</span>
+            <Edit3 className="h-3.5 w-3.5 text-amber-400" />
+            <span>Вы можете редактировать любой аркан — все изменения сохраняются и скачиваются</span>
           </div>
         </div>
       </div>
+
+      {/* Modified items alert banner */}
+      {modifiedCount > 0 && (
+        <div className="border-b border-amber-900/40 bg-amber-950/30 px-4 py-2.5 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-amber-200">
+              <Info className="h-4 w-4 text-amber-400 shrink-0" />
+              <span>
+                Отредактировано арканов: <strong>{modifiedCount}</strong>. Все скачивания (Google Sheets, CSV, JSON, Markdown) автоматически содержат ваши авторские правки!
+              </span>
+            </div>
+            <button
+              onClick={handleResetAllCards}
+              className="inline-flex items-center gap-1 rounded border border-amber-800/80 bg-amber-900/40 px-2.5 py-1 text-xs text-amber-200 hover:bg-amber-800 transition"
+            >
+              <RotateCcw className="h-3 w-3" />
+              <span>Сбросить все к оригиналу книги</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filters Bar */}
       <FiltersBar
@@ -166,7 +249,7 @@ export default function App() {
         onAtomicChange={setSelectedAtomic}
         selectedRealm={selectedRealm}
         onRealmChange={setSelectedRealm}
-        totalCards={TAROT_CARDS.length}
+        totalCards={cards.length}
         filteredCount={filteredCards.length}
         onResetFilters={handleResetFilters}
       />
@@ -178,6 +261,7 @@ export default function App() {
             <TarotTable
               cards={filteredCards}
               onSelectCard={(card) => setSelectedCard(card)}
+              onEditCard={(card) => setSelectedCard(card)}
             />
           </div>
         </div>
@@ -195,12 +279,14 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Card Detail Modal */}
+      {/* Card Detail & Edit Modal */}
       <CardDetailModal
         card={selectedCard}
         onClose={() => setSelectedCard(null)}
         onPrev={handlePrevCard}
         onNext={handleNextCard}
+        onSaveCard={handleSaveCard}
+        onResetCard={handleResetCard}
       />
 
       {/* Google Sheets Export Modal */}
